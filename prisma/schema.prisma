@@ -1,0 +1,502 @@
+// The Kings Hotel — Prisma schema
+// Database: PostgreSQL (Neon-compatible)
+// Convention: Prisma defaults for table/column naming.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum UserRole {
+  GUEST
+  STAFF
+  ADMIN
+  MANAGER
+  CONCIERGE
+}
+
+enum RoomStatus {
+  AVAILABLE
+  OCCUPIED
+  RESERVED
+  MAINTENANCE
+  OUT_OF_SERVICE
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CHECKED_IN
+  CHECKED_OUT
+  CANCELLED
+  NO_SHOW
+}
+
+enum BookingSource {
+  WEBSITE
+  PHONE
+  WALK_IN
+  AGENT
+  OTA
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum PaymentProvider {
+  PAYSTACK
+  FLUTTERWAVE
+  STRIPE
+  CASH
+  CARD
+  BANK_TRANSFER
+}
+
+enum ReservationStatus {
+  PENDING
+  CONFIRMED
+  SEATED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PREPARING
+  READY
+  DELIVERED
+  COMPLETED
+  CANCELLED
+}
+
+enum OrderType {
+  DINE_IN
+  TAKEAWAY
+  ROOM_SERVICE
+}
+
+enum NotificationType {
+  BOOKING_CONFIRMED
+  BOOKING_CANCELLED
+  PAYMENT_RECEIVED
+  PAYMENT_FAILED
+  ORDER_UPDATE
+  RESERVATION_CONFIRMED
+  PROMOTION
+  SYSTEM
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum AmenityCategory {
+  ROOM
+  FACILITY
+  SERVICE
+  RECREATION
+  DINING
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED_AMOUNT
+}
+
+enum EventType {
+  WEDDING
+  CONFERENCE
+  MEETING
+  PRIVATE_PARTY
+  BIRTHDAY
+  OTHER
+}
+
+enum StaffDepartment {
+  FRONT_DESK
+  HOUSEKEEPING
+  KITCHEN
+  RESTAURANT
+  MANAGEMENT
+  MAINTENANCE
+  SECURITY
+}
+
+enum EmploymentStatus {
+  ACTIVE
+  ON_LEAVE
+  TERMINATED
+}
+
+// ---------------------------------------------------------------------------
+// Identity & Access
+// ---------------------------------------------------------------------------
+
+model Role {
+  id          String   @id @default(uuid())
+  name        UserRole @unique
+  description String?
+  permissions String[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  users User[]
+}
+
+model User {
+  id            String   @id @default(uuid())
+  roleId        String
+  name          String
+  email         String   @unique
+  phone         String?
+  passwordHash  String
+  emailVerified Boolean  @default(false)
+  image         String?
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  role              Role               @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  bookings          Booking[]
+  orders            RestaurantOrder[]
+  reviews           Review[]
+  tableReservations TableReservation[]
+  poolReservations  PoolReservation[]
+  eventReservations EventReservation[]
+  notifications     Notification[]
+  auditLogs         AuditLog[]
+  staffProfile      Staff?
+}
+
+model Staff {
+  id               String           @id @default(uuid())
+  userId           String           @unique
+  position         String
+  department       StaffDepartment
+  hireDate         DateTime         @db.Date
+  employmentStatus EmploymentStatus @default(ACTIVE)
+  bio              String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ---------------------------------------------------------------------------
+// Rooms & Inventory
+// ---------------------------------------------------------------------------
+
+model RoomType {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  slug        String   @unique
+  description String?
+  basePrice   Int
+  currency    String   @default("NGN")
+  capacity    Int
+  bedType     String?
+  size        String?
+  features    String[]
+  images      String[]
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  rooms Room[]
+}
+
+model Room {
+  id         String     @id @default(uuid())
+  roomNumber String     @unique
+  typeId     String
+  floor      Int?
+  status     RoomStatus @default(AVAILABLE)
+  notes      String?
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+
+  type          RoomType       @relation(fields: [typeId], references: [id], onDelete: Restrict)
+  bookings      Booking[]
+  reviews       Review[]
+  galleryImages GalleryImage[]
+}
+
+// ---------------------------------------------------------------------------
+// Bookings & Payments
+// ---------------------------------------------------------------------------
+
+model Booking {
+  id              String        @id @default(uuid())
+  userId          String
+  roomId          String
+  couponId        String?
+  checkIn         DateTime      @db.Date
+  checkOut        DateTime      @db.Date
+  guests          Int
+  status          BookingStatus @default(PENDING)
+  source          BookingSource @default(WEBSITE)
+  totalAmount     Int
+  currency        String        @default("NGN")
+  specialRequests String?
+  idempotencyKey  String?       @unique
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  cancelledAt     DateTime?
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+  room    Room     @relation(fields: [roomId], references: [id], onDelete: Restrict)
+  coupon  Coupon?  @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  payment Payment?
+}
+
+model Payment {
+  id                String          @id @default(uuid())
+  bookingId         String          @unique
+  amount            Int
+  currency          String          @default("NGN")
+  status            PaymentStatus   @default(PENDING)
+  provider          PaymentProvider
+  providerReference String?         @unique
+  metadata          Json?
+  paidAt            DateTime?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  booking Booking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+}
+
+model Coupon {
+  id               String       @id @default(uuid())
+  code             String       @unique
+  description      String?
+  discountType     DiscountType
+  discountValue    Int
+  currency         String       @default("NGN")
+  maxUses          Int?
+  usedCount        Int          @default(0)
+  minBookingAmount Int?
+  validFrom        DateTime?
+  validUntil       DateTime?
+  isActive         Boolean      @default(true)
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  bookings Booking[]
+}
+
+// ---------------------------------------------------------------------------
+// Restaurant
+// ---------------------------------------------------------------------------
+
+model RestaurantCategory {
+  id          String   @id @default(uuid())
+  name        String
+  slug        String   @unique
+  description String?
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  items RestaurantItem[]
+}
+
+model RestaurantItem {
+  id          String   @id @default(uuid())
+  categoryId  String
+  name        String
+  slug        String   @unique
+  description String?
+  price       Int
+  currency    String   @default("NGN")
+  image       String?
+  isAvailable Boolean  @default(true)
+  isFeatured  Boolean  @default(false)
+  allergens   String[]
+  ingredients String[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  category   RestaurantCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  orderItems OrderItem[]
+}
+
+model RestaurantOrder {
+  id          String      @id @default(uuid())
+  userId      String
+  status      OrderStatus @default(PENDING)
+  type        OrderType   @default(DINE_IN)
+  tableNumber String?
+  notes       String?
+  totalAmount Int
+  currency    String      @default("NGN")
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  user       User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  orderItems OrderItem[]
+}
+
+model OrderItem {
+  id        String  @id @default(uuid())
+  orderId   String
+  itemId    String
+  quantity  Int
+  unitPrice Int
+  subtotal  Int
+  notes     String?
+
+  order RestaurantOrder @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  item  RestaurantItem  @relation(fields: [itemId], references: [id], onDelete: Restrict)
+}
+
+// ---------------------------------------------------------------------------
+// Reservations (Table / Pool / Events)
+// ---------------------------------------------------------------------------
+
+model TableReservation {
+  id              String            @id @default(uuid())
+  userId          String
+  guests          Int
+  reservationTime DateTime          @db.Timestamptz(3)
+  durationMinutes Int               @default(120)
+  tableNumber     String?
+  status          ReservationStatus @default(PENDING)
+  specialRequests String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+}
+
+model PoolReservation {
+  id              String            @id @default(uuid())
+  userId          String
+  slotStart       DateTime          @db.Timestamptz(3)
+  slotEnd         DateTime          @db.Timestamptz(3)
+  guests          Int
+  status          ReservationStatus @default(PENDING)
+  specialRequests String?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+}
+
+model EventReservation {
+  id           String            @id @default(uuid())
+  userId       String
+  eventType    EventType
+  eventDate    DateTime          @db.Date
+  startTime    String
+  endTime      String
+  guestCount   Int
+  budget       Int?
+  requirements Json?
+  status       ReservationStatus @default(PENDING)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+}
+
+// ---------------------------------------------------------------------------
+// Content & Feedback
+// ---------------------------------------------------------------------------
+
+model Amenity {
+  id          String          @id @default(uuid())
+  name        String
+  description String?
+  icon        String?
+  category    AmenityCategory @default(FACILITY)
+  isActive    Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+}
+
+model Review {
+  id        String       @id @default(uuid())
+  userId    String
+  roomId    String
+  rating    Int
+  title     String?
+  comment   String?
+  status    ReviewStatus @default(PENDING)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  room Room @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  @@unique([roomId, userId])
+  @@index([status])
+}
+
+model GalleryImage {
+  id        String   @id @default(uuid())
+  roomId    String?
+  category  String   @default("general")
+  url       String
+  alt       String?
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  room Room? @relation(fields: [roomId], references: [id], onDelete: SetNull)
+}
+
+// ---------------------------------------------------------------------------
+// Notifications & Auditing
+// ---------------------------------------------------------------------------
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String?
+  data      Json?
+  isRead    Boolean          @default(false)
+  readAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  userId     String?
+  action     String
+  entityType String
+  entityId   String?
+  before     Json?
+  after      Json?
+  ipAddress  String?
+  userAgent  String?
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
