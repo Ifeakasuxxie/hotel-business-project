@@ -21,15 +21,17 @@ export {
   poolReservationSchema,
   tableReservationSchema,
 } from "./reservation";
-export { createReviewSchema } from "./review";
+export { createReviewSchema, moderateReviewSchema } from "./review";
 export {
   createRoomSchema,
   roomQuerySchema,
 } from "./room";
 export {
   changePasswordSchema,
+  createUserSchema,
   loginSchema,
   registerUserSchema,
+  updateProfileSchema,
   updateUserSchema,
 } from "./user";
 export {

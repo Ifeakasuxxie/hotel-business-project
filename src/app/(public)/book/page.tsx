@@ -7,9 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { rooms } from "@/lib/data";
+import { getRooms } from "@/lib/data";
 import { formatCurrency, cn } from "@/lib/utils";
-import { Minus, Plus, CalendarDays, User, Mail, Phone, MessageSquare } from "lucide-react";
+import { Minus, Plus, CalendarDays, User, Mail, Phone, MessageSquare, AlertTriangle } from "lucide-react";
 
 function calcNights(checkIn: string, checkOut: string): number {
   if (!checkIn || !checkOut) return 0;
@@ -34,6 +34,10 @@ function BookPageContent() {
   const initialGuests = searchParams.get("guests") || "2";
   const initialRoom = searchParams.get("room") || "";
 
+  const rooms = getRooms();
+  const requestedRoom = initialRoom ? rooms.find((r) => r.slug === initialRoom) : undefined;
+  const hasUnknownRoom = initialRoom !== "" && !requestedRoom;
+
   const [checkIn, setCheckIn] = useState(initialCheckIn);
   const [checkOut, setCheckOut] = useState(initialCheckOut);
   const [guests, setGuests] = useState(initialGuests);
@@ -49,7 +53,7 @@ function BookPageContent() {
 
   const selectedRooms = useMemo(
     () => rooms.filter((r) => (quantities[r.id] || 0) > 0),
-    [quantities]
+    [rooms, quantities]
   );
 
   const totalPrice = useMemo(
@@ -72,6 +76,19 @@ function BookPageContent() {
         title="Book Your Stay"
         description="Select your rooms, dates, and preferences — we will handle the rest."
       />
+
+      {hasUnknownRoom && (
+        <div
+          role="alert"
+          className="mx-auto flex max-w-3xl items-start gap-3 rounded-lg border border-terracotta/40 bg-terracotta/10 px-4 py-3 text-sm text-terracotta"
+        >
+          <AlertTriangle className="h-5 w-5 shrink-0" />
+          <p>
+            We could not find the room you were looking for. Please choose an available
+            room below to continue with your booking.
+          </p>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-10">
         <div className="lg:col-span-3 space-y-8">
@@ -142,6 +159,7 @@ function BookPageContent() {
                           onClick={() => adjustQty(room.id, -1)}
                           className="flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-foreground hover:bg-secondary transition-colors disabled:opacity-30"
                           disabled={qty === 0}
+                          aria-label={`Decrease quantity for ${room.title}`}
                         >
                           <Minus className="h-4 w-4" />
                         </button>
@@ -151,6 +169,7 @@ function BookPageContent() {
                           onClick={() => adjustQty(room.id, 1)}
                           className="flex h-9 w-9 items-center justify-center rounded-md border border-border bg-background text-foreground hover:bg-secondary transition-colors disabled:opacity-30"
                           disabled={qty >= 10}
+                          aria-label={`Increase quantity for ${room.title}`}
                         >
                           <Plus className="h-4 w-4" />
                         </button>

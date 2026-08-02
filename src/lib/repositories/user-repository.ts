@@ -7,6 +7,13 @@ export const userRepository = {
     return prisma.user.findUnique({ where: { id } });
   },
 
+  findByIdWithRole(id: string) {
+    return prisma.user.findUnique({
+      where: { id },
+      include: { role: true },
+    });
+  },
+
   findByEmail(email: string) {
     return prisma.user.findUnique({ where: { email } });
   },
@@ -38,6 +45,19 @@ export const userRepository = {
     return prisma.user.findMany({
       where,
       orderBy: { createdAt: "desc" },
+    });
+  },
+
+  findManyPaginated(
+    where: Prisma.UserWhereInput = {},
+    { skip, take }: { skip: number; take: number },
+  ) {
+    return prisma.user.findMany({
+      where,
+      include: { role: true },
+      orderBy: { createdAt: "desc" },
+      skip,
+      take,
     });
   },
 };

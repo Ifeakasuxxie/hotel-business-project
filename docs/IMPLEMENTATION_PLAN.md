@@ -235,23 +235,91 @@ CREATE TABLE "Payment" (
 - Concurrent booking attempts prevent double-booking
 
 ### Deliverables (implemented)
-- ✅ `prisma/schema.prisma` — 21 models + 16 enums (see `docs/DATABASE_PLAN.md`)
+- ✅ `prisma/schema.prisma` — 24 models + 16 enums (see `docs/DATABASE_PLAN.md`)
 - ✅ `prisma/migrations/0_init/migration.sql` — baseline SQL via `prisma migrate diff --from-empty`
+- ✅ `prisma/seed.ts` — role + admin seed (run with `npm run db:seed`)
 - ✅ `src/lib/prisma.ts` — PrismaClient singleton (dev hot-reload guard)
 - ✅ `src/lib/errors/` — `ApiError` + `NotFound/Validation/Conflict/Unauthorized/Forbidden/NotImplemented/Database` subclasses
-- ✅ `src/lib/types/` — `ApiResponse`, `Paginated<T>`, DTOs
+- ✅ `src/lib/types/` — `ApiResponse`, `Paginated<T>`, DTOs (incl. `AuthUserDto`, `AuthSessionDto`)
 - ✅ `src/lib/validations/` — Zod schemas for every resource (bookings, users, rooms, payments, reviews, restaurant, reservations, contact)
 - ✅ `src/lib/repositories/` — typed CRUD per aggregate over `@prisma/client`
-- ✅ `src/lib/services/` — business-logic placeholders throwing `NotImplementedError` with Phase-4 TODO notes
+- ✅ `src/lib/services/` — business logic; auth/user/profile implemented (Phase 4), the rest stubbed with `NotImplementedError`
 - ✅ `src/lib/middleware/` — `withErrorHandler`, `withValidation`, `createRateLimiter` stub
 - ✅ `src/lib/utils/` — JSON envelope helpers (moved `cn`/`formatCurrency` into this folder)
 - ✅ `src/lib/hooks/use-api.ts` — typed client fetch hook
-- ✅ `src/app/api/**` — 24 route handlers (all dynamic), all returning structured `501` until Phase 4
-- ✅ `src/middleware.ts` — root middleware (request id header)
-- ✅ `.env` / `.env.example` — `DATABASE_URL`, `NEXTAUTH_*`, `RESEND_*`, `CLOUDINARY_*`, `STRIPE_*` placeholders
+- ✅ `src/app/api/**` — 29 route handlers (all dynamic); auth endpoints live from Phase 4, others return structured `501`
+- ✅ `src/middleware.ts` — root middleware (request id header + auth-aware protection)
+- ✅ `.env` / `.env.example` — `DATABASE_URL`, `NEXTAUTH_*`, `SEED_ADMIN_*`, `RESEND_*`, `CLOUDINARY_*`, `STRIPE_*` placeholders
 - ✅ `npm run build` + `next lint` + `tsc --noEmit` all clean
 
 > Note: the "Schema Overview (Conceptual)" SQL below is the original design sketch. The authoritative, live model is `prisma/schema.prisma`.
+
+---
+
+## Phase 4 (Implemented): Authentication & Authorization
+
+> The project's actual Phase 4 is authentication (not the booking engine in the original roadmap below — the booking engine is deferred to a later phase).
+
+### Goal
+Production-ready auth for guests and staff: registration, credentials login, session management, logout, RBAC, protected pages/APIs, and session-aware navigation.
+
+### Stack
+Auth.js (NextAuth v5 `5.0.0-beta.32`) + `@auth/prisma-adapter` + `bcryptjs` (pure-JS bcrypt — same API as `bcrypt`, avoids native compilation on this Windows toolchain).
+
+### Build Tasks
+- ✅ Schema: `UserRole.GUEST` → `CUSTOMER`; `User.firstName`/`lastName`; Auth.js adapter tables (`Account`, `Session`, `VerificationToken`)
+- ✅ `src/lib/auth/` — split, edge-safe modules:
+  - `config.ts` — shared `authConfig` (JWT strategy, callbacks, pages, secret) with **no providers/adapter** so the middleware bundle stays Prisma/bcrypt-free
+  - `edge.ts` — `NextAuth(authConfig)` used by `src/middleware.ts` (Edge runtime)
+  - `credentials.ts` — credentials provider (`authorize` → `userRepository` + bcrypt compare)
+  - `index.ts` — full runtime instance: `{ handlers, auth, signIn, signOut }` + providers + adapter
+  - `roles.ts` — `ROLES`, `isAdmin/isStaff/isCustomer/isStaffOrAdmin`, `requireRole/requireAdmin/requireStaff/requireCustomer`
+  - `session.ts` — `authenticated()`, `currentUser()`, `requireAuth()`, `requireSelfOrAdmin()`
+- ✅ `src/types/next-auth.d.ts` — `Session.user.id`/`role` + `JWT` augmentation
+- ✅ `src/app/api/auth/[...nextauth]/route.ts` — NextAuth v5 handler
+- ✅ `src/app/api/auth/{register,login,logout,me}` fully implemented (REST envelope preserved)
+- ✅ `src/app/api/profile` (GET/PUT) and `src/app/api/users` + `[id]` protected with role checks
+- ✅ `src/middleware.ts` — verifies session cookie, keeps `x-request-id`, returns 401 JSON for protected APIs, redirects unauthenticated page requests to `/login`
+- ✅ Auth pages: `/login`, `/register`, `/profile`; `SessionProvider` in root layout; session-aware `Navbar`
+
+### Verification
+- ✅ `tsc --noEmit` clean
+- ✅ `next lint` clean
+- ✅ `npm run build` passes — `ƒ /api/auth/[...nextauth]`, `/login`, `/register`, `/profile` registered; middleware compiles as a standalone Edge bundle (86.7 kB, no Prisma)
+- ⏳ Live DB flows (register/login/session) pending a PostgreSQL instance — migration + seed are ready (`npm run db:migrate` / `npm run db:seed`)
+
+---
+
+## Phase 3.5 (Implemented): Frontend Architectural Cleanup
+
+> Stability pass over the public site before the business-logic phases: single source of truth for data, removal of orphan/duplicate routes, design-token consistency, SEO, accessibility, and API-route hygiene. No UI redesign and no business-logic changes — services still return `NotImplementedError`.
+
+### Goal
+One data file per domain, no dead or duplicated routes, token-based styling only, per-page metadata + sitemap/robots, validated PATCH bodies, and a clean dependency list.
+
+### Build Tasks
+- ✅ Single source of truth:
+  - `src/lib/data/rooms.ts` — canonical room catalog with `getRooms`, `getRoomBySlug`, `getFeaturedRooms`, `getLuxuryRooms`, `getRoomTypes`
+  - `src/lib/data/services.ts` — canonical services (categories incl. `guest-services`); `getServicesByCategory`
+  - Deleted `src/lib/data/services-legacy.ts` (4-item duplicate of `guest-services`)
+- ✅ Pages:
+  - `/rooms` and `/rooms/[id]` rebuilt from data helpers (`RoomCard`, `notFound()` on unknown slug, `generateMetadata` with canonical/OG)
+  - `/book` resolves `?room=` slug, shows an inline alert for unknown rooms, labelled +/- quantity controls
+  - Deleted orphan duplicates `/bar`, `/pool`, `/recreation`, `/restaurant`
+  - `/experience` now links to its four data-driven subpages (amenities/dining/recreation/services)
+  - `/contact` is a controlled form (zod field validation, `aria-invalid`, labelled fields) posting to `POST /api/contact` with a graceful 501 message
+- ✅ Design tokens: no raw Tailwind palette (`slate-*`/`amber-*`/etc.) in app or components; theme tokens and `heading-serif`/`section-tag`/`container-page` only
+- ✅ API hygiene: `PATCH /api/bookings/[id]` and `PATCH /api/reviews/[id]` parse + validate the request body (`updateBookingSchema`, new `moderateReviewSchema`) instead of sending `{}` / a hardcoded status
+- ✅ SEO: root metadata gains `metadataBase`, title template, OG/Twitter defaults; per-page `metadata` on every public page; `robots.ts` + `sitemap.ts` (room slugs included)
+- ✅ Dependencies: removed `framer-motion` (zero usages); kept `react-hook-form` + `@hookform/resolvers` for upcoming Phase 4.5 forms
+- ✅ `tsconfig.json`: `moduleResolution: "node"` → `"bundler"`
+
+### Verification
+- ✅ `tsc --noEmit` clean
+- ✅ `next lint` clean
+- ✅ `npm run build` passes
+- ✅ `/rooms/<bad-slug>` → 404; `/book?room=<slug>` pre-selects the room
+- ✅ Grep: no `services-legacy`, no links to deleted routes, no raw palette colors
 
 ---
 

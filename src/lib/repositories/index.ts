@@ -1,4 +1,5 @@
 export { bookingRepository } from "./booking-repository";
+export { roleRepository } from "./role-repository";
 export { paymentRepository } from "./payment-repository";
 export { reservationRepository } from "./reservation-repository";
 export { restaurantRepository } from "./restaurant-repository";

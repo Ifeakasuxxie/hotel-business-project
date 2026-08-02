@@ -65,6 +65,42 @@ export const rooms: Room[] = [
   },
 ];
 
+export function getRooms(): Room[] {
+  return rooms;
+}
+
 export function getRoomBySlug(slug: string): Room | undefined {
   return rooms.find((r) => r.slug === slug);
+}
+
+export function getFeaturedRooms(): Room[] {
+  return rooms.slice(0, 3);
+}
+
+export function getLuxuryRooms(): Room[] {
+  return rooms.filter((r) => r.price >= 100000);
+}
+
+export interface RoomTypeSummary {
+  id: string;
+  slug: string;
+  title: string;
+  bed: string;
+  size: string;
+  capacity: string;
+  price: number;
+  currency: string;
+}
+
+export function getRoomTypes(): RoomTypeSummary[] {
+  return rooms.map(({ id, slug, title, bed, size, capacity, price, currency }) => ({
+    id,
+    slug,
+    title,
+    bed,
+    size,
+    capacity,
+    price,
+    currency,
+  }));
 }

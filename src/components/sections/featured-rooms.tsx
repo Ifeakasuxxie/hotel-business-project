@@ -3,9 +3,11 @@ import { SectionHeader } from "@/components/common/section-header";
 import { RoomCard } from "@/components/common/room-card";
 import { Button } from "@/components/ui/button";
 import { ArrowRight } from "lucide-react";
-import { rooms } from "@/lib/data";
+import { getFeaturedRooms } from "@/lib/data";
 
 export function FeaturedRooms() {
+  const rooms = getFeaturedRooms();
+
   return (
     <section className="py-24 bg-cream/60">
       <div className="container-page space-y-12">

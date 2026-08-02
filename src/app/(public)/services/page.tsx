@@ -1,6 +1,16 @@
 import { SectionHeader } from "@/components/common/section-header";
 import { serviceCategories, getServicesByCategory } from "@/lib/data";
 import { Bed, Hotel, Building2, Utensils, Sun, Coffee, GlassWater, Waves, Sparkles, Dumbbell, Dices, CircleDot, Gamepad2, Trees, Bell, ConciergeBell, Shirt, Plane, Wifi, Car } from "lucide-react";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Services & Amenities",
+  description:
+    "From accommodation and dining to recreation and guest services — everything The Kings Hotel offers under one roof.",
+  alternates: {
+    canonical: "/services",
+  },
+};
 
 const iconMap: Record<string, React.ReactNode> = {
   Bed: <Bed className="h-6 w-6" />,

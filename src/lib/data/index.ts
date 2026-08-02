@@ -1,8 +1,15 @@
 export { mainNavLinks } from "./navigation";
 export type { NavLink } from "./navigation";
 
-export { rooms, getRoomBySlug } from "./rooms";
-export type { Room, RoomFeature } from "./rooms";
+export {
+  rooms,
+  getRoomBySlug,
+  getFeaturedRooms,
+  getRoomTypes,
+  getRooms,
+  getLuxuryRooms,
+} from "./rooms";
+export type { Room, RoomFeature, RoomTypeSummary } from "./rooms";
 
 export { services, serviceCategories, getServicesByCategory } from "./services";
 export type { ServiceItem } from "./services";
@@ -18,9 +25,6 @@ export type { DiningOption } from "./dining";
 
 export { recreationOptions } from "./recreation";
 export type { RecreationOption } from "./recreation";
-
-export { guestServices } from "./services-legacy";
-export type { Service } from "./services-legacy";
 
 export { testimonials } from "./testimonials";
 export type { Testimonial } from "./testimonials";

@@ -1,5 +1,15 @@
 import { SectionHeader } from "@/components/common/section-header";
 import Image from "next/image";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Our Story",
+  description:
+    "Discover the passion and dedication that has made The Kings Hotel a destination for discerning travelers.",
+  alternates: {
+    canonical: "/about",
+  },
+};
 
 export default function AboutPage() {
   return (

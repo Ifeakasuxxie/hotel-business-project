@@ -1,12 +1,22 @@
 import { SectionHeader } from "@/components/common/section-header";
 import { Dices, CircleDot, Gamepad2, Trees } from "lucide-react";
 import { recreationOptions } from "@/lib/data";
+import type { Metadata } from "next";
 
 const iconMap: Record<string, React.ReactNode> = {
   Dices: <Dices className="h-6 w-6" />,
   CircleDot: <CircleDot className="h-6 w-6" />,
   Gamepad2: <Gamepad2 className="h-6 w-6" />,
   Trees: <Trees className="h-6 w-6" />,
+};
+
+export const metadata: Metadata = {
+  title: "Recreation",
+  description:
+    "Snooker, games, and outdoor activities available to guests at The Kings Hotel.",
+  alternates: {
+    canonical: "/experience/recreation",
+  },
 };
 
 export default function RecreationPage() {

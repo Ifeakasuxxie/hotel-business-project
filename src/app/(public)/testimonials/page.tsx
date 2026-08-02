@@ -1,6 +1,16 @@
 import { SectionHeader } from "@/components/common/section-header";
 import { TestimonialCard } from "@/components/common/testimonial-card";
 import { testimonials } from "@/lib/data";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Guest Testimonials",
+  description:
+    "Hear from those who have experienced The Kings Hotel's hospitality firsthand.",
+  alternates: {
+    canonical: "/testimonials",
+  },
+};
 
 export default function TestimonialsPage() {
   return (

@@ -10,11 +10,44 @@ import type {
 
 import type { Paginated } from "./pagination";
 
-export type UserDto = Pick<User, "id" | "name" | "email" | "roleId" | "isActive">;
+export type UserDto = Pick<
+  User,
+  | "id"
+  | "firstName"
+  | "lastName"
+  | "name"
+  | "email"
+  | "phone"
+  | "roleId"
+  | "isActive"
+> & {
+  role?: string;
+};
+
 export type UserProfileDto = Pick<
   User,
-  "id" | "name" | "email" | "phone" | "image" | "emailVerified"
->;
+  | "id"
+  | "firstName"
+  | "lastName"
+  | "name"
+  | "email"
+  | "phone"
+  | "image"
+  | "emailVerified"
+> & {
+  role?: string;
+};
+
+export type AuthUserDto = Pick<
+  User,
+  "id" | "firstName" | "lastName" | "name" | "email" | "image"
+> & {
+  role: string;
+};
+
+export type AuthSessionDto = {
+  user: AuthUserDto;
+};
 
 export type RoomTypeDto = Pick<
   RoomType,

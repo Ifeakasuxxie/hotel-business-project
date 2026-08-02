@@ -1,6 +1,16 @@
 import { SectionHeader } from "@/components/common/section-header";
 import { AmenityCard } from "@/components/common/amenity-card";
 import { amenities } from "@/lib/data";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Hotel Amenities",
+  description:
+    "Every comfort and convenience thoughtfully arranged for your enjoyment at The Kings Hotel.",
+  alternates: {
+    canonical: "/experience/amenities",
+  },
+};
 
 export default function AmenitiesPage() {
   return (

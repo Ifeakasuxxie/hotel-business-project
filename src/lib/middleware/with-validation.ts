@@ -4,16 +4,17 @@ import { type z, type ZodTypeAny } from "zod";
 
 import { ValidationError } from "@/lib/errors";
 
-type BodyHandler<D> = (
+type BodyHandler<D, A extends unknown[]> = (
   request: NextRequest,
   data: D,
+  ...rest: A
 ) => NextResponse | Promise<NextResponse>;
 
 export function withValidation<S extends ZodTypeAny>(schema: S) {
-  return <D extends z.infer<S>>(
-    handler: BodyHandler<D>,
-  ): ((request: NextRequest) => Promise<NextResponse>) => {
-    return async (request) => {
+  return <D extends z.infer<S>, A extends unknown[] = []>(
+    handler: BodyHandler<D, A>,
+  ): ((request: NextRequest, ...rest: A) => Promise<NextResponse>) => {
+    return async (request, ...rest) => {
       let raw: unknown;
       try {
         raw = await request.json();
@@ -26,7 +27,7 @@ export function withValidation<S extends ZodTypeAny>(schema: S) {
         throw new ValidationError("Validation failed", result.error.flatten());
       }
 
-      return handler(request, result.data as D);
+      return handler(request, result.data as D, ...rest);
     };
   };
 }

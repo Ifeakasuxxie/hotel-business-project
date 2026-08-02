@@ -2,7 +2,7 @@
 
 ---
 
-## Current Architecture (Phase 2)
+## Current Architecture (Phase 4)
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -21,12 +21,12 @@
                   ┌──────────────────────────┘
                   │
 ┌─────────────────▼────────────────────────────────────────┐
-│              Next.js 14.2.5 (App Router)                  │
+│              Next.js 15.5 (App Router)                   │
 │                                                          │
 │  ┌─────────────┐  ┌─────────────┐  ┌───────────────┐   │
 │  │ Layouts      │  │ Pages       │  │ Components     │   │
-│  │ (Root,       │  │ (18 static  │  │ (UI + Section) │   │
-│  │  Public)     │  │  routes)    │  │                │   │
+│  │ (Root,       │  │ (22 static  │  │ (UI + Section) │   │
+│  │  Public)     │  │  pages)     │  │                │   │
 │  └─────────────┘  └─────────────┘  └───────────────┘   │
 │                                                          │
 │  ┌─────────────┐  ┌─────────────┐  ┌───────────────┐   │
@@ -43,7 +43,9 @@
 |-------|-----------|---------|
 | **CDN** | Vercel Edge Network | Caches static HTML, CSS, JS, optimized images at 100+ edge locations |
 | **Reverse Proxy** | Vercel | SSL termination, request routing, cache hit/miss decisions |
-| **Pages** | Next.js App Router | 18 static routes; pre-rendered at build time (SSG) |
+| **Pages** | Next.js App Router | 22 static pages; pre-rendered at build time (SSG) |
+| **API Routes** | Next.js Route Handlers | 29 dynamic `src/app/api/**` handlers — auth live, business logic stubbed (`NotImplementedError`) |
+| **Auth** | Auth.js (NextAuth v5 beta) | JWT sessions, credentials login, RBAC, edge-safe middleware (86.7 kB, no Prisma) |
 | **Components** | React + Tailwind | Reusable UI primitives and section components |
 | **Data** | TypeScript modules | Static data (rooms, services, navigation, testimonials) |
 | **Images** | `/public/images/` + Unsplash | Local hero/room images; remote gallery images via `next/image` |
@@ -52,8 +54,9 @@
 
 - **Hosting**: Vercel (Production) / localhost (Development)
 - **Build**: `next build` produces static HTML + serverless function bundles
-- **Routing**: App Router — `(public)` route group for consistent layout
-- **State**: All data is static (TypeScript files). No database, no API, no auth.
+- **Routing**: App Router — `(public)` and `(auth)` route groups for consistent layouts
+- **State**: Public content is static (TypeScript data modules); auth flows use Prisma (PostgreSQL required — live DB flows pending a local instance)
+- **Frontend cleanup (Phase 3.5)**: single data source per domain, no orphan routes, token-only styling, per-page metadata + `robots.ts`/`sitemap.ts`, validated PATCH bodies, `moduleResolution: "bundler"`
 
 ---
 

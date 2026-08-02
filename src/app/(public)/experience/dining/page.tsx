@@ -1,12 +1,22 @@
 import { SectionHeader } from "@/components/common/section-header";
 import { Utensils, GlassWater, Sun, Coffee } from "lucide-react";
 import { diningOptions } from "@/lib/data";
+import type { Metadata } from "next";
 
 const iconMap: Record<string, React.ReactNode> = {
   Utensils: <Utensils className="h-6 w-6" />,
   GlassWater: <GlassWater className="h-6 w-6" />,
   Sun: <Sun className="h-6 w-6" />,
   Coffee: <Coffee className="h-6 w-6" />,
+};
+
+export const metadata: Metadata = {
+  title: "Dining",
+  description:
+    "Restaurant, bar, and terrace dining experiences at The Kings Hotel.",
+  alternates: {
+    canonical: "/experience/dining",
+  },
 };
 
 export default function DiningPage() {

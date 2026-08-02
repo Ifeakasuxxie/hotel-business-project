@@ -6,11 +6,18 @@
 
 ## Phase 3 Implementation Status
 
-The schema is **implemented** (21 models) with a baseline migration generated at `prisma/migrations/0_init/migration.sql` (SQL output from `prisma migrate diff --from-empty`; apply against a live PostgreSQL instance when provisioning). Prisma Client is generated and shared via the `src/lib/prisma.ts` singleton.
+The schema is **implemented** (24 models) with a baseline migration generated at `prisma/migrations/0_init/migration.sql` (SQL output from `prisma migrate diff --from-empty`; apply against a live PostgreSQL instance when provisioning). Prisma Client is generated and shared via the `src/lib/prisma.ts` singleton.
+
+### Phase 4 changes (Authentication)
+
+- **`User` model extended**: added `firstName String` and `lastName String` (kept `name` as the display/full name for backward compatibility with existing DTOs/UI).
+- **`UserRole` enum**: renamed `GUEST` → `CUSTOMER` to align with the product roles (CUSTOMER, STAFF, ADMIN, MANAGER, CONCIERGE).
+- **Auth.js adapter tables added**: `Account`, `Session`, `VerificationToken` (+ `User.accounts`, `User.sessions` relations) to support the Prisma adapter (`@auth/prisma-adapter`).
+- **Seed script added**: `prisma/seed.ts` upserts the five `Role` rows (with permission sets) and creates an admin user (`SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`, defaults `admin@thekingshotel.com` / `Admin123!`). Run with `npm run db:seed`.
 
 ### Implemented models
 
-Identity & access: `Role`, `User`, `Staff`
+Identity & access: `Role`, `User`, `Staff`, `Account`, `Session`, `VerificationToken`
 Rooms & inventory: `RoomType`, `Room`
 Bookings & payments: `Booking`, `Payment`, `Coupon`
 Restaurant: `RestaurantCategory`, `RestaurantItem`, `RestaurantOrder`, `OrderItem`

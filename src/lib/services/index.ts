@@ -1,6 +1,7 @@
 export { authService } from "./auth-service";
 export { bookingService } from "./booking-service";
 export { paymentService } from "./payment-service";
+export { profileService } from "./profile-service";
 export { reservationService } from "./reservation-service";
 export { restaurantService } from "./restaurant-service";
 export { reviewService } from "./review-service";

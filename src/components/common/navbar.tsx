@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { Menu, X, Hotel } from "lucide-react";
+import { signOut, useSession } from "next-auth/react";
+import { Menu, X, Hotel, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { mainNavLinks } from "@/lib/data";
 import { cn } from "@/lib/utils";
@@ -13,6 +14,12 @@ export function Navbar() {
   const isHomepage = pathname === "/";
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const { status, data: session } = useSession();
+
+  const isAuthed = status === "authenticated";
+  const role = session?.user?.role;
+  const isStaff =
+    role === "ADMIN" || role === "MANAGER" || role === "STAFF" || role === "CONCIERGE";
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 40);
@@ -25,6 +32,17 @@ export function Navbar() {
   }, [pathname]);
 
   const isTransparent = isHomepage && !scrolled;
+
+  const handleSignOut = () => signOut({ callbackUrl: "/" });
+
+  const navLinkClass = (extra?: string) =>
+    cn(
+      "rounded-lg px-4 py-2 text-sm font-medium transition-colors",
+      isTransparent
+        ? "text-white/80 hover:text-white hover:bg-white/10"
+        : "text-muted-foreground hover:text-foreground hover:bg-secondary",
+      extra
+    );
 
   return (
     <header
@@ -66,20 +84,41 @@ export function Navbar() {
             <Link
               key={link.name}
               href={link.href}
-              className={cn(
-                "rounded-lg px-4 py-2 text-sm font-medium transition-colors",
-                isTransparent
-                  ? "text-white/80 hover:text-white hover:bg-white/10"
-                  : "text-muted-foreground hover:text-foreground hover:bg-secondary"
-              )}
+              className={navLinkClass()}
             >
               {link.name}
             </Link>
           ))}
         </nav>
 
-        <div className="hidden sm:flex items-center">
-          <Button asChild size="sm">
+        <div className="hidden sm:flex items-center gap-2">
+          {status === "loading" ? null : isAuthed ? (
+            <>
+              {isStaff && (
+                <Button asChild variant="outline" size="sm">
+                  <Link href="/dashboard">Dashboard</Link>
+                </Button>
+              )}
+              <Button asChild variant="ghost" size="sm">
+                <Link href="/profile" className="gap-2">
+                  <User className="h-4 w-4" /> Profile
+                </Link>
+              </Button>
+              <Button variant="ghost" size="sm" onClick={handleSignOut}>
+                Sign Out
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button asChild variant="outline" size="sm">
+                <Link href="/login">Sign In</Link>
+              </Button>
+              <Button asChild size="sm">
+                <Link href="/register">Join Us</Link>
+              </Button>
+            </>
+          )}
+          <Button asChild size="sm" className="hidden md:inline-flex">
             <Link href="/book">Book Now</Link>
           </Button>
         </div>
@@ -111,7 +150,31 @@ export function Navbar() {
               </Link>
             ))}
           </div>
-          <div className="mt-5 pt-4 border-t border-border">
+          <div className="mt-5 pt-4 border-t border-border space-y-2">
+            {isAuthed ? (
+              <>
+                {isStaff && (
+                  <Button asChild variant="outline" className="w-full justify-center">
+                    <Link href="/dashboard" onClick={() => setMobileMenuOpen(false)}>Dashboard</Link>
+                  </Button>
+                )}
+                <Button asChild variant="outline" className="w-full justify-center">
+                  <Link href="/profile" onClick={() => setMobileMenuOpen(false)}>My Profile</Link>
+                </Button>
+                <Button variant="ghost" className="w-full justify-center" onClick={() => { setMobileMenuOpen(false); handleSignOut(); }}>
+                  Sign Out
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button asChild variant="outline" className="w-full justify-center">
+                  <Link href="/login" onClick={() => setMobileMenuOpen(false)}>Sign In</Link>
+                </Button>
+                <Button asChild variant="outline" className="w-full justify-center">
+                  <Link href="/register" onClick={() => setMobileMenuOpen(false)}>Join Us</Link>
+                </Button>
+              </>
+            )}
             <Button asChild className="w-full justify-center">
               <Link href="/book" onClick={() => setMobileMenuOpen(false)}>Book Now</Link>
             </Button>

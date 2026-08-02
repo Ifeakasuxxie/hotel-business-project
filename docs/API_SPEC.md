@@ -6,27 +6,21 @@
 
 ## Phase 3 Implementation Status (Scaffolding)
 
-All route groups below are **scaffolded** in `src/app/api/*`. Every endpoint is wired through the shared error handler and (where relevant) Zod validation, but **returns `501 NOT_IMPLEMENTED`** until Phase 4+, when the corresponding service stub is filled in. The exception is `GET /api/health`.
+All route groups below are **scaffolded** in `src/app/api/*`. Every endpoint is wired through the shared error handler and (where relevant) Zod validation, but **returns `501 NOT_IMPLEMENTED`** until its service stub is filled in (see Phase 4 status below). The exceptions that are live are `GET /api/health` and all auth endpoints.
 
 ### Live routes (Phase 3)
 
 | Method | Route | Validation | Service stub |
 |--------|-------|-----------|--------------|
 | GET | `/api/health` | — | returns `{ status: "ok" }` |
-| POST | `/api/auth/register` | `registerUserSchema` | `authService.register` |
-| POST | `/api/auth/login` | `loginSchema` | `authService.login` |
-| POST | `/api/auth/logout` | — | `authService.logout` |
-| GET | `/api/auth/me` | — | `authService.getCurrentUser` |
-| GET/POST | `/api/users` | `registerUserSchema` | `userService.list/create` |
-| GET/PATCH/DELETE | `/api/users/[id]` | — | `userService.getById/update/deactivate` |
-| GET | `/api/rooms` | — | `roomService.listAvailable` |
+| GET/POST | `/api/rooms` | — | `roomService.listAvailable` |
 | GET | `/api/rooms/[id]` | — | `roomService.getById` |
 | GET/POST | `/api/bookings` | `createBookingSchema` | `bookingService.*` |
-| GET/PATCH | `/api/bookings/[id]` | — | `bookingService.*` |
+| GET/PATCH | `/api/bookings/[id]` | `updateBookingSchema` | `bookingService.*` |
 | POST | `/api/payments` | `createPaymentSchema` | `paymentService.initialize` |
 | GET | `/api/payments/[id]` | — | `paymentService.verify` |
 | GET/POST | `/api/reviews` | `createReviewSchema` | `reviewService.*` |
-| PATCH | `/api/reviews/[id]` | — | `reviewService.moderate` |
+| PATCH | `/api/reviews/[id]` | `moderateReviewSchema` | `reviewService.moderate` |
 | GET | `/api/restaurant/menu` | — | `restaurantService.listMenu` |
 | GET | `/api/restaurant/menu/[id]` | — | `restaurantService.getItem` |
 | GET/POST | `/api/restaurant/orders` | `createRestaurantOrderSchema` | `restaurantService.*` |
@@ -35,6 +29,53 @@ All route groups below are **scaffolded** in `src/app/api/*`. Every endpoint is 
 | POST | `/api/reservations/pool` | `poolReservationSchema` | `reservationService.createPool` |
 | POST | `/api/reservations/event` | `eventReservationSchema` | `reservationService.createEvent` |
 | POST | `/api/contact` | `contactMessageSchema` | (inline TODO) |
+
+## Phase 4 Implementation Status (Authentication)
+
+Auth is fully implemented with **Auth.js (NextAuth v5)** + Prisma adapter + bcrypt (bcryptjs). Sessions use the JWT strategy; roles are stored in the normalized `Role` table and mirrored into the session JWT.
+
+### Live auth routes (Phase 4)
+
+| Method | Route | Validation | Notes |
+|--------|-------|-----------|-------|
+| GET/POST | `/api/auth/[...nextauth]` | — | NextAuth v5 handler (session/callback/signin/signout endpoints) |
+| POST | `/api/auth/register` | `registerUserSchema` | Creates a `CUSTOMER` account; returns `201` `AuthUserDto` |
+| POST | `/api/auth/login` | `loginSchema` | Verifies credentials (bcrypt) and issues session cookie |
+| POST | `/api/auth/logout` | — | Clears session cookie, returns `204` |
+| GET | `/api/auth/me` | — | Returns current `AuthUserDto` or `401` |
+| GET | `/api/profile` | — | Requires auth; returns `UserProfileDto` |
+| PUT | `/api/profile` | `updateProfileSchema` | Requires auth; updates own profile |
+| GET/POST | `/api/users` | `createUserSchema` | Requires ADMIN/MANAGER; paginated list + create |
+| GET/PATCH/DELETE | `/api/users/[id]` | `updateUserSchema` | GET/PATCH require self or ADMIN/MANAGER; DELETE requires ADMIN/MANAGER |
+
+### Authorization model
+
+- **Session helpers** (`src/lib/auth/session.ts`): `authenticated()`, `currentUser()`, `requireAuth()`, `requireSelfOrAdmin()`.
+- **RBAC utilities** (`src/lib/auth/roles.ts`): `isAdmin()`, `isStaff()`, `isCustomer()`, `isStaffOrAdmin()`, `requireRole()`, `requireAdmin()`, `requireStaff()`, `requireCustomer()`.
+- **Middleware** (`src/middleware.ts`): verifies the session cookie (edge-safe `auth`), adds `x-request-id`, returns `401` JSON for protected APIs, redirects unauthenticated page requests (`/dashboard`, `/profile`, `/admin`, `/bookings`) to `/login`.
+- **Role check** is also enforced inside route handlers (defense in depth).
+
+### Authentication pages
+
+| Route | Purpose |
+|-------|---------|
+| `/login` | Credentials sign-in |
+| `/register` | Account creation (first name, last name, email, password) |
+| `/profile` | View/edit own profile; sign out |
+
+### Registration payload
+
+```jsonc
+// POST /api/auth/register
+{
+  "firstName": "Jane",
+  "lastName": "Doe",
+  "email": "jane@example.com",
+  "phone": "+2348000000000",   // optional
+  "password": "Str0ngPass!",
+  "confirmPassword": "Str0ngPass!"
+}
+```
 
 ### Implemented envelope (deviates from earlier draft)
 
@@ -226,7 +267,15 @@ Get booking details.
 
 #### `PATCH /api/bookings/:id`
 
-Modify booking dates. Only allowed for pending/confirmed bookings.
+Update booking status / special requests. Body validated with `updateBookingSchema` (`status` ∈ BookingStatus, `specialRequests` ≤ 1000 chars). Business logic is currently stubbed (`NotImplementedError`).
+
+**Request**:
+```json
+{
+  "status": "confirmed",
+  "specialRequests": "Late check-in please"
+}
+```
 
 #### `DELETE /api/bookings/:id`
 
@@ -267,37 +316,67 @@ Webhook endpoint for Paystack payment events.
 
 **Events**: `charge.success`, `charge.failed`
 
-### Auth
+### Auth (implemented in Phase 4)
+
+Auth uses Auth.js v5 with the **JWT session strategy** (httpOnly session cookie — no `Bearer` token flow). The old access/refresh-token design below is superseded.
 
 #### `POST /api/auth/register`
+
+Creates a customer account. Returns `201 Created`.
 
 **Request**:
 ```json
 {
-  "name": "John Doe",
-  "email": "john@example.com",
+  "firstName": "Jane",
+  "lastName": "Doe",
+  "email": "jane@example.com",
   "phone": "+2348000000000",
-  "password": "securePassword123"
+  "password": "Str0ngPass!",
+  "confirmPassword": "Str0ngPass!"
 }
 ```
 
-**Response**: `{ "user": {...}, "accessToken": "...", "refreshToken": "..." }`
+**Response**:
+```json
+{
+  "success": true,
+  "data": {
+    "id": "uuid",
+    "firstName": "Jane",
+    "lastName": "Doe",
+    "name": "Jane Doe",
+    "email": "jane@example.com",
+    "role": "CUSTOMER"
+  },
+  "message": "Account created"
+}
+```
 
 #### `POST /api/auth/login`
 
+Verifies credentials, then sets the session cookie via Auth.js.
+
 **Request**: `{ "email": "...", "password": "..." }`
-**Response**: `{ "user": {...}, "accessToken": "...", "refreshToken": "..." }`
-
-#### `POST /api/auth/refresh`
-
-**Request**: `{ "refreshToken": "..." }`
-**Response**: `{ "accessToken": "...", "refreshToken": "..." }`
+**Response**: `{ "success": true, "data": { ...AuthUserDto }, "message": "Signed in" }`
+**Error**: `401 UNAUTHORIZED` with `"Invalid email or password"`.
 
 #### `POST /api/auth/logout`
 
-Invalidate current session.
+Clears the session cookie. Returns `204 No Content`.
 
-### Hotel Services
+#### `GET /api/auth/me`
+
+Returns the current user or `401 UNAUTHORIZED` when no session is present.
+
+#### `GET /api/profile` / `PUT /api/profile`
+
+Requires a session. `GET` returns `UserProfileDto`; `PUT` updates `firstName`, `lastName`, `phone`, `image`.
+
+#### `GET /api/users` / `GET|PATCH|DELETE /api/users/[id]`
+
+Admin/manager area. `GET` list requires ADMIN/MANAGER. `GET`/`PATCH` on `[id]` allow the owner or an ADMIN/MANAGER. `DELETE` (soft-deactivate) requires ADMIN/MANAGER.
+
+### Hotel Services (draft — Phase 6+)
 
 #### `POST /api/services/room-service`
 
